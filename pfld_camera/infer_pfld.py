@@ -3,6 +3,9 @@ k = tf.keras
 import numpy as np
 import cv2
 from scipy.special import softmax, expit
+import sys
+import os
+sys.path.insert(0, os.getcwd())
 from retinaface_camera import get_anchors, nms_oneclass, decode_bbox, decode_landm
 
 
@@ -16,7 +19,7 @@ def detect_face(retinaface_model: k.Model,
   """ resize """
   img = cv2.cvtColor(draw_img, cv2.COLOR_BGR2RGB)
   """ normlize """
-  det_img = ((img/255. - 0.5) / 1)[None, ...]
+  det_img = ((img / 255. - 0.5) / 1)[None, ...]
   """ infer """
   predictions = retinaface_model.predict(det_img)
   """ parser """
@@ -46,7 +49,7 @@ def detect_face(retinaface_model: k.Model,
     croped_wh = croped_img.shape[1::-1]
     if croped_wh[0] == croped_wh[1] and min(croped_wh) > 10:
       croped_img = cv2.resize(croped_img, (112, 112))
-      croped_img = ((croped_img/255. - 0.5) / 1)[None, ...]
+      croped_img = ((croped_img / 255. - 0.5) / 1)[None, ...]
       landmarks = pfld_model.predict(croped_img)
       s_point = np.array([cx - halfw, cy - halfw])
       for landm in np.reshape(expit(landmarks), (-1, 2)) * croped_wh:
