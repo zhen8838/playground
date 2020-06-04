@@ -29,12 +29,14 @@ class SelectableFrame(wx.Frame):
     self.SetTransparent(200)
 
     self.screen_cat: MSS = screen_cat
-    self.w = w
-    self.h = h
-    self.half_w = w // 2
-    self.half_h = h // 2
-    self.roi_w = int(w * 0.7)
-    self.roi_h = int(h * 0.7)
+    self.old_w = w
+    self.old_h = h
+    self.w = self.old_w
+    self.h = self.old_h
+    self.half_w = self.old_w // 2
+    self.half_h = self.old_h // 2
+    self.roi_w = int(self.old_w * 0.7)
+    self.roi_h = int(self.old_h * 0.7)
     self.roi_half_w = self.roi_w // 2
     self.roi_half_h = self.roi_h // 2
     self.save_pattern = save_pattern
@@ -60,7 +62,16 @@ class SelectableFrame(wx.Frame):
 
     mss.tools.to_png(im.rgb, im.size, output=self.save_pattern % self.number)
     self.number += 1
+    self.w = self.old_w
+    self.h = self.old_h
+    self.half_w = self.old_w // 2
+    self.half_h = self.old_h // 2
+    self.roi_w = int(self.old_w * 0.7)
+    self.roi_h = int(self.old_h * 0.7)
+    self.roi_half_w = self.roi_w // 2
+    self.roi_half_h = self.roi_h // 2 
     self.SetTransparent(200)
+    self.Refresh()
 
   def OnPaint(self, event):
     if self.c is None:
