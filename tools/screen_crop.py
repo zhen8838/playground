@@ -6,6 +6,8 @@ import argparse
 import os
 
 # NOTE: conda install wxpython, pip install mss
+
+
 class SelectableFrame(wx.Frame):
 
   c = None
@@ -31,6 +33,10 @@ class SelectableFrame(wx.Frame):
     self.h = h
     self.half_w = w // 2
     self.half_h = h // 2
+    self.roi_w = int(w * 0.7)
+    self.roi_h = int(h * 0.7)
+    self.roi_half_w = self.roi_w // 2
+    self.roi_half_h = self.roi_h // 2
     self.save_pattern = save_pattern
     self.number = number
 
@@ -64,6 +70,7 @@ class SelectableFrame(wx.Frame):
     brush = wx.TRANSPARENT_BRUSH
     dc.SetBrush(brush)
     dc.DrawRectangle(self.c.x - self.half_w, self.c.y - self.half_h, self.w, self.h)
+    dc.DrawRectangle(self.c.x - self.roi_half_w, self.c.y - self.roi_half_h, self.roi_w, self.roi_h)
 
   def OnKeyDown(self, event):
     kc = event.GetKeyCode()
@@ -74,12 +81,20 @@ class SelectableFrame(wx.Frame):
       self.w += 32
       self.half_h += 16
       self.half_w += 16
+      self.roi_w += 22
+      self.roi_h += 22
+      self.roi_half_w += 11
+      self.roi_half_h += 11
       self.Refresh()
     elif kc == wx.WXK_DOWN:
       self.h -= 32
       self.w -= 32
       self.half_h -= 16
       self.half_w -= 16
+      self.roi_w -= 22
+      self.roi_h -= 22
+      self.roi_half_w -= 11
+      self.roi_half_h -= 11
       self.Refresh()
 
 
@@ -102,6 +117,7 @@ if __name__ == "__main__":
     save_pattern = args.dir + "/%d.png"
     if not os.path.exists(args.dir):
       os.mkdir(args.dir)
+      number = 0
     else:
       l = os.listdir(args.dir)
       nl = [int(p.split('.')[0]) for p in l]
