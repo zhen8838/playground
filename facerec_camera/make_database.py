@@ -15,7 +15,7 @@ def letter_box_resize(img, in_hw):
   scale = np.min(in_hw / img_hw)
 
   # NOTE calc the x,y offset
-  yx_off = ((in_hw - img_hw*scale) / 2).astype('int32')
+  yx_off = ((in_hw - img_hw * scale) / 2).astype('int32')
 
   img_hw = (img_hw * scale).astype('int32')
 
@@ -31,7 +31,7 @@ def reverse_letter_box(bbox: np.ndarray, landm: np.ndarray, in_hw: np.ndarray,
 
     """
   scale = np.min(in_hw / img_hw)
-  xy_off = ((in_hw - img_hw*scale) / 2)[::-1]
+  xy_off = ((in_hw - img_hw * scale) / 2)[::-1]
 
   bbox = (bbox - np.tile(xy_off, [2])) / scale
   landm = (landm - np.tile(xy_off, [5])) / scale
@@ -60,7 +60,7 @@ class RetinaFace():
     orig_hw = np.array(img.shape[:2], 'int32')
     img = letter_box_resize(img, self.in_hw)
     """ normlize """
-    img = (img/255. - 0.5) / 1
+    img = (img / 255. - 0.5) / 1
     """ infer """
     predictions = self.model.predict(img[None, ...])
     """ parser """
@@ -95,20 +95,29 @@ class RetinaFace():
 
     return bbox, landm, score
 
-  def detect_faces_and_crop(self, draw_img):
+  def detect_faces_and_crop(self, draw_img, crop_ratio=1.):
+    orig_wh = draw_img.shape[1:: -1]
     bboxs, landms, scores = self.detect_faces(draw_img)
-
     face_imgs = []
     face_landmarks = []
     vaild_bboxs = []
     for box, landm, score in zip(bboxs.astype(int), landms, scores):
       # crop face region
       cx, cy = (box[:2] + box[2:]) // 2
-      halfw = np.max(box[2:] - box[:2]) // 2
-      face_img: np.ndarray = draw_img[cy - halfw:cy + halfw, cx - halfw:cx +
-                                      halfw]
+      halfw = int((np.max(box[2:] - box[:2]) // 2) * crop_ratio)
+      face_img: np.ndarray = draw_img[np.maximum(cy - halfw, 0):
+                                      np.minimum(cy + halfw, orig_wh[1]),
+                                      np.maximum(cx - halfw, 0):
+                                      np.minimum(cx + halfw, orig_wh[0])]
       face_img_wh = face_img.shape[1::-1]
-      if face_img_wh[0] == face_img_wh[1] and min(face_img_wh) > 10:
+      if face_img_wh[0] != face_img_wh[1]:
+        top = np.maximum(-(cy - halfw), 0)
+        bottom = np.maximum(cy + halfw - orig_wh[1], 0)
+        left = np.maximum(-(cx - halfw), 0)
+        right = np.maximum(cx + halfw - orig_wh[0], 0)
+        face_img = cv2.copyMakeBorder(face_img, top, bottom, left,
+                                      right, cv2.BORDER_CONSTANT, value=0)
+      if min(face_img_wh) > 10:
         face_landm = np.reshape(landm, (-1, 2)) - np.array(
             [cx - halfw, cy - halfw], 'int32')
         face_imgs.append(face_img)
@@ -161,7 +170,7 @@ class FaceRec(object):
     img = np.copy(img)
     img = cv2.resize(img, tuple(self.in_hw))
     img = np.expand_dims(img, 0)
-    img = (img/255. - 0.5/0.5019607843137255).astype('float32')
+    img = (img / 255. - 0.5 / 0.5019607843137255).astype('float32')
     self.model.set_tensor(self.input_details, img)
     self.model.invoke()
     emmbeding = self.model.get_tensor(self.output_details)

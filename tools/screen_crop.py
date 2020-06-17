@@ -3,7 +3,7 @@ from mss.linux import MSS
 import mss.tools
 import wx
 import argparse
-import os
+from pathlib import Path
 
 # NOTE: conda install wxpython, pip install mss
 
@@ -12,7 +12,7 @@ class SelectableFrame(wx.Frame):
 
   c = None
 
-  def __init__(self, w, h, screen_cat, save_pattern, number,
+  def __init__(self, w, h, screen_cat, save_root, number,
                parent=None, id=-1, title=""):
     wx.Frame.__init__(self, parent, id, title, size=wx.DisplaySize())
 
@@ -39,7 +39,7 @@ class SelectableFrame(wx.Frame):
     self.roi_h = int(self.old_h * 0.7)
     self.roi_half_w = self.roi_w // 2
     self.roi_half_h = self.roi_h // 2
-    self.save_pattern = save_pattern
+    self.save_root = save_root
     self.number = number
 
   def OnMouseMove(self, event):
@@ -47,7 +47,7 @@ class SelectableFrame(wx.Frame):
     self.Refresh()
 
   def OnMouseDown(self, event):
-    self.SetTransparent(0)
+    self.SetTransparent(1)
     self.c = event.GetPosition()
     self.Refresh()
 
@@ -59,8 +59,8 @@ class SelectableFrame(wx.Frame):
                                "left": cc.x - self.half_w,  # offset from the left
                                "width": self.w,
                                "height": self.h})
-
-    mss.tools.to_png(im.rgb, im.size, output=self.save_pattern % self.number)
+    output_file = self.save_root / ("%d.png" % self.number)
+    mss.tools.to_png(im.rgb, im.size, output=output_file)
     self.number += 1
     self.w = self.old_w
     self.h = self.old_h
@@ -69,7 +69,7 @@ class SelectableFrame(wx.Frame):
     self.roi_w = int(self.old_w * 0.7)
     self.roi_h = int(self.old_h * 0.7)
     self.roi_half_w = self.roi_w // 2
-    self.roi_half_h = self.roi_h // 2 
+    self.roi_half_h = self.roi_h // 2
     self.SetTransparent(200)
     self.Refresh()
 
@@ -125,19 +125,20 @@ if __name__ == "__main__":
   with mss.mss(display="") as sct:
     app = wx.App(0)
     w, h = args.wh
-    save_pattern = args.dir + "/%d.png"
-    if not os.path.exists(args.dir):
-      os.mkdir(args.dir)
+    root = Path(args.dir)
+
+    if not root.exists():
+      root.mkdir(parents=True)
       number = 0
     else:
-      l = os.listdir(args.dir)
-      nl = [int(p.split('.')[0]) for p in l]
+      l = list(root.iterdir())
+      nl = [int(p.stem) for p in l]
       if len(nl) > 0:
         number = max(nl) + 1
       else:
         number = 0
 
-    frame = SelectableFrame(w, h, sct, save_pattern, number)
+    frame = SelectableFrame(w, h, sct, root, number)
 
     frame.Show(True)
     app.SetTopWindow(frame)
