@@ -47,5 +47,9 @@
 <td colspan=2 ><img src="asset/phototransfer.gif" alt=""></td>
 <td> I use <a href="https://github.com/minivision-ai/photo2cartoon">U-GAT-IT</a> to training a model which can convert photo to JOJO style cartoon. <br>This model is currently not working well, please <a href="https://zhen8838.github.io/2020/06/08/U-GAT-IT/">refer here</a> for details </td>
 </tr>
+<tr>
+<td colspan=2 ><img src="asset/statistical.gif" alt=""></td>
+<td> I wrote a series of <a href="https://github.com/zhen8838/Statistical-Learning-Method">code demos</a> for the book <strong>统计学习方法 第二版(李航)</strong>
+</tr>
 </tbody>
 </table>
