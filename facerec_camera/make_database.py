@@ -168,7 +168,8 @@ class FaceRec(object):
 
   def forward(self, img):
     img = np.copy(img)
-    img = cv2.resize(img, tuple(self.in_hw))
+    if img.shape[:2] != self.in_hw:
+      img = cv2.resize(img, tuple(self.in_hw))
     img = np.expand_dims(img, 0)
     img = (img / 255. - 0.5 / 0.5019607843137255).astype('float32')
     self.model.set_tensor(self.input_details, img)

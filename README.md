@@ -51,5 +51,9 @@
 <td colspan=2 ><img src="asset/statistical.gif" alt=""></td>
 <td> I wrote a series of <a href="https://github.com/zhen8838/Statistical-Learning-Method">code demos</a> for the book <strong>统计学习方法 第二版(李航)</strong>
 </tr>
+<tr>
+<td colspan=2 ><img src="asset/matting_tool.gif" alt=""></td>
+<td> I wrote a batch auto matting tool base on <a href="https://github.com/backseason/PoolNet">PoolNet</a>, open source in <a href="https://github.com/zhen8838/ai-matting-tool">here</a>
+</tr>
 </tbody>
 </table>
