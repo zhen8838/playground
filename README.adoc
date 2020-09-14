@@ -1,0 +1,96 @@
+= My Code PlayGround
+:imagesdir: asset
+
+== Environment
+
+`requirements.txt` ∈ `python 3.7.4`  
+
+
+
+.Demos
+[cols="1^.^,1^.^,1<.^"]
+|===
+|Command|Illustration|Description
+
+// ---split---
+2+^.^a|image::magnetic.gif[] 
+
+|A Small Magnetic suspension System open source in https://github.com/cczu-osa/magnetic-suspension"[here]
+
+// ---split---
+a|
+[source,shell]
+----
+python retinaface_camera/infer_gpu.py
+----
+
+a| image:retinaface.gif[] 
+
+| I used tensorflow to reproduce the https://github.com/deepinsight/insightface/tree/master/RetinaFace[retinaface] and trained for a period of time. 
+
+The implementation summary blog is https://zhen8838.github.io/2019/12/19/retinaface/[here]
+
+// ---split---
+a|
+[source,shell]
+----
+python pfld_camera/infer_pfld.py
+----
+
+a| image:pfld.gif[] 
+
+|I used tensorflow to reproduce the https://github.com/guoqiangqi/PFLD[pfld] and trained for a period of time.
+
+The implementation summary blog is https://zhen8838.github.io/2019/12/21/pfld/[here]
+
+// ---split---
+
+a|
+[source,shell]
+----
+python yolov3_camera/infer_yolov3.py
+----
+
+a| image:yolov3.gif[]
+
+|I used tensorflow to reproduce the https://pjreddie.com/darknet/yolo/[yolov3] and trained for a period of time. <br>  The implementation summary blog is https://zhen8838.github.io/2019/07/10/yolo-error/[here] 
+
+demo model is mobilenetv1-yolov3 (30mb 69.7map@voc)
+
+// ---split---
+a|
+[source,shell]
+----
+./facerec_camera/make_database.sh
+python facerec_camera/infer_facerec.py
+----
+
+a| image:facerec.gif[]
+
+| I used tensorflow to reproduce the https://github.com/deepinsight/insightface[insightface] and trained for a period of time. <br>   demo model is mobilenetv1-0.25 (99.8@lfw)
+
+// ---split---
+
+2+a|image:animegan.gif[]
+
+|I used tensorflow to reproduce the https://github.com/TachibanaYoshino/AnimeGAN[AnimeGAN] and trained for a period of time. <br>   open source in https://github.com/zhen8838/AnimeGAN[here]
+
+// ---split---
+
+2+a|image:phototransfer.gif[]
+
+|I use https://github.com/minivision-ai/photo2cartoon[U-GAT-IT] to training a model which can convert photo to JOJO style cartoon. <br>This model is currently not working well, please https://zhen8838.github.io/2020/06/08/U-GAT-IT/[refer] here for details
+
+// ---split---
+
+2+a|image:statistical.gif[]
+
+|I wrote a series of https://github.com/zhen8838/Statistical-Learning-Method[code demos] for the book *统计学习方法 第二版(李航)*
+
+// ---split---
+
+2+a|image:matting_tool.gif[]
+
+| I wrote a batch auto matting tool base on https://github.com/backseason/PoolNet[PoolNet], open source in https://github.com/zhen8838/ai-matting-tool[here]
+
+|===
