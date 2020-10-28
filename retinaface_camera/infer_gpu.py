@@ -19,8 +19,8 @@ def get_anchors(in_hw, anchor_widths, anchor_steps):
         for n, width in enumerate(anchor_width):
           s_kx = width
           s_ky = width
-          cx = (j+0.5) * anchor_steps[k] / in_hw[1]
-          cy = (i+0.5) * anchor_steps[k] / in_hw[0]
+          cx = (j + 0.5) * anchor_steps[k] / in_hw[1]
+          cy = (i + 0.5) * anchor_steps[k] / in_hw[0]
           feature[i, j, n, :] = cx, cy, s_kx, s_ky
     anchors.append(feature)
 
@@ -87,7 +87,7 @@ def nms_oneclass(bbox: np.ndarray, score: np.ndarray,
   x2 = bbox[:, 2]
   y2 = bbox[:, 3]
 
-  areas = (x2-x1+1) * (y2-y1+1)
+  areas = (x2 - x1 + 1) * (y2 - y1 + 1)
   order = score.argsort()[::-1]
 
   keep = []
@@ -119,20 +119,20 @@ def detect_face(model: k.Model,
   """ resize """
   img = cv2.cvtColor(draw_img, cv2.COLOR_BGR2RGB)
   """ normlize """
-  img = (img/255. - 0.5) / 1
+  img = (img / 255. - 0.5) / 1
   """ infer """
-  predictions = model.predict(img[None, ...])
+  bbox, landm, clses = model.predict(img[None, ...])
   """ parser """
-  bbox, landm, clses = np.split(predictions[0], [4, -2], 1)
+  bbox, landm, clses = bbox[0], landm[0], clses[0]
   """ softmax class"""
   clses = softmax(clses, -1)
   score = clses[:, 1]
   """ decode """
   bbox = decode_bbox(bbox, anchors, variances)
-  bbox = bbox * np.repeat([640, 640], 2)
+  bbox = bbox * np.tile([640, 640], [2])
   """ landmark """
   landm = decode_landm(landm, anchors, variances)
-  landm = landm * np.repeat([640, 640], 5)
+  landm = landm * np.tile([640, 640], [5])
   """ filter low score """
   inds = np.where(score > obj_thresh)[0]
   bbox = bbox[inds]
@@ -168,7 +168,7 @@ if __name__ == "__main__":
   physical_devices = tf.config.experimental.list_physical_devices('GPU')
   assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
   tf.config.experimental.set_memory_growth(physical_devices[0], True)
-  model: k.Model = k.models.load_model('asset/retinaface_train.h5')
+  model: k.Model = k.models.load_model('asset/retinaface_jojo.h5')
   anchors = get_anchors([640, 640], [[0.025, 0.05], [0.1, 0.2], [0.4, 0.8]],
                         [8, 16, 32])
   capture = cv2.VideoCapture(0)

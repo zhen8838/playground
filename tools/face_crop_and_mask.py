@@ -24,7 +24,7 @@ def main(data_path, save_path, batch_size: int,
     save_path.mkdir(parents=True)
 
   """ init retinaface """
-  retinaface = RetinaFace('asset/retinaface_train.h5', [640, 640])
+  retinaface = RetinaFace('asset/retinaface_train.h5', [640, 640], crop_ratio=face_crop_ratio)
   TEMPLATE = np.array([[0.34191607, 0.46157411], [0.65653393, 0.45983393],
                        [0.500225, 0.64050536], [0.37097589, 0.82469196],
                        [0.631517, 0.82325089]])
@@ -40,8 +40,7 @@ def main(data_path, save_path, batch_size: int,
                                     save_img_paths[i:i + batch_size]):
       orig_img = cv2.cvtColor(cv2.imread(data_path.as_posix(), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
       if use_face_crop:
-        bbox, face_imgs, face_landmarks = retinaface.detect_faces_and_crop(
-            orig_img, face_crop_ratio)
+        bbox, face_imgs, face_landmarks = retinaface.detect_one_face_and_crop(orig_img)
         if len(bbox) < 1:
           continue
         warped_img = retinaface.face_algin_by_landmark(face_imgs[0], face_landmarks[0], TEMPLATE)

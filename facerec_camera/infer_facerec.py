@@ -28,7 +28,7 @@ def main():
   while (True):
     ret, draw_img = capture.read()
     img = cv2.cvtColor(draw_img, cv2.COLOR_BGR2RGB)
-    bbox, face_imgs, face_landmarks = retinaface.detect_faces_and_crop(img)
+    bbox, face_imgs, face_landmarks = retinaface.detect_one_face_and_crop(img)
     if len(bbox) > 0:
       warped_imgs = [
           retinaface.face_algin_by_landmark(face_img, face_landmark, TEMPLATE)

@@ -45,7 +45,10 @@ class RetinaFace():
                in_hw: tuple,
                obj_thresh=0.8,
                nms_threshold=0.4,
-               variances=[0.1, 0.2]):
+               variances=[0.1, 0.2],
+               crop_ratio=2.,
+               fill_value=0,
+               ignore_size: int = 10):
     self.model: k.Model = k.models.load_model(model_path)
     self.in_hw = in_hw
     self.anchors: np.ndarray = get_anchors(
@@ -53,27 +56,34 @@ class RetinaFace():
     self.obj_thresh = obj_thresh
     self.nms_threshold = nms_threshold
     self.variances = variances
+    self.fill_value = fill_value
+    self.ignore_size = ignore_size
+    self.crop_ratio = crop_ratio
 
-  def detect_faces(self, draw_img):
-    """ resize """
-    img = np.copy(draw_img)
-    orig_hw = np.array(img.shape[:2], 'int32')
-    img = letter_box_resize(img, self.in_hw)
-    """ normlize """
-    img = (img / 255. - 0.5) / 1
-    """ infer """
-    predictions = self.model.predict(img[None, ...])
-    """ parser """
-    bbox, landm, clses = np.split(predictions[0], [4, -2], 1)
+  def resize_one_image(self, im, in_hw):
+    orig_hw = np.array(im.shape[:2], 'int32')
+    im = letter_box_resize(im, in_hw)
+    return im, orig_hw
+
+  def resize_images(self, draw_img, in_hw):
+    ims = []
+    orig_hws = []
+    for im in draw_img:
+      im, orig_hw = self.resize_one_image(im, in_hw)
+      ims.append(im)
+      orig_hws.append(orig_hw)
+    return ims, orig_hws
+
+  def parser_one_image(self, bbox, landm, clses, orig_hw):
     """ softmax class"""
     clses = softmax(clses, -1)
     score = clses[:, 1]
     """ decode """
     bbox = decode_bbox(bbox, self.anchors, self.variances)
-    bbox = bbox * np.repeat([640, 640], 2)
+    bbox = bbox * np.tile(self.in_hw[::-1], [2])
     """ landmark """
     landm = decode_landm(landm, self.anchors, self.variances)
-    landm = landm * np.repeat([640, 640], 5)
+    landm = landm * np.tile(self.in_hw[::-1], [5])
     """ filter low score """
     inds = np.where(score > self.obj_thresh)[0]
     bbox = bbox[inds]
@@ -92,19 +102,48 @@ class RetinaFace():
     score = score[keep]
 
     bbox, landm = reverse_letter_box(bbox, landm, self.in_hw, orig_hw)
-
     return bbox, landm, score
 
-  def detect_faces_and_crop(self, draw_img, crop_ratio=1.):
+  def detect_one_face(self, draw_img):
+    """ resize """
+    img, orig_hw = self.resize_one_image(draw_img, self.in_hw)
+    """ normlize """
+    img = (img / 255. - 0.5) / 1
+    """ infer """
+    bbox, landm, clses = self.model.predict(img[None, ...])
+    """ parser """
+    bbox, landm, clses = bbox[0], landm[0], clses[0]
+    return self.parser_one_image(bbox, landm, clses, orig_hw)
+
+  def detect_faces(self, draw_imgs):
+    """ resize """
+    imgs, orig_hws = self.resize_images(draw_imgs, self.in_hw)
+    imgs = np.stack(imgs)
+    """ normlize """
+    imgs = (imgs / 255. - 0.5) / 1
+    """ infer """
+    bboxs, landms, clsess = self.model.predict(imgs)
+    boxss = []
+    landmarkss = []
+    scoress = []
+    """ parser """
+    for bbox, landm, clses, orig_hw in zip(bboxs, landms, clsess, orig_hws):
+      box, landmark, score = self.parser_one_image(bbox, landm, clses, orig_hw)
+      boxss.append(box)
+      landmarkss.append(landmark)
+      scoress.append(score)
+    return boxss, landmarkss, scoress
+
+  def crop_one_face(self, draw_img: np.ndarray, bboxs: np.ndarray,
+                    landms: np.ndarray, scores: np.ndarray) -> List[List[np.ndarray]]:
     orig_wh = draw_img.shape[1:: -1]
-    bboxs, landms, scores = self.detect_faces(draw_img)
     face_imgs = []
     face_landmarks = []
     vaild_bboxs = []
     for box, landm, score in zip(bboxs.astype(int), landms, scores):
       # crop face region
       cx, cy = (box[:2] + box[2:]) // 2
-      halfw = int((np.max(box[2:] - box[:2]) // 2) * crop_ratio)
+      halfw = int((np.max(box[2:] - box[:2]) // 2) * self.crop_ratio)
       face_img: np.ndarray = draw_img[np.maximum(cy - halfw, 0):
                                       np.minimum(cy + halfw, orig_wh[1]),
                                       np.maximum(cx - halfw, 0):
@@ -116,14 +155,30 @@ class RetinaFace():
         left = np.maximum(-(cx - halfw), 0)
         right = np.maximum(cx + halfw - orig_wh[0], 0)
         face_img = cv2.copyMakeBorder(face_img, top, bottom, left,
-                                      right, cv2.BORDER_CONSTANT, value=0)
-      if min(face_img_wh) > 10:
+                                      right, cv2.BORDER_CONSTANT,
+                                      value=[self.fill_value,
+                                             self.fill_value,
+                                             self.fill_value])
+      if min(face_img_wh) > self.ignore_size:
         face_landm = np.reshape(landm, (-1, 2)) - np.array(
             [cx - halfw, cy - halfw], 'int32')
         face_imgs.append(face_img)
         face_landmarks.append(face_landm)
         vaild_bboxs.append(box)
     return vaild_bboxs, face_imgs, face_landmarks
+
+  def detect_faces_and_crop(self, draw_imgs):
+    boxss, landmarkss, scoress = self.detect_faces(draw_imgs)
+    res = ([], [], [])
+    for draw_img, bboxs, landms, scores in zip(draw_imgs, boxss, landmarkss, scoress):
+      face_info = self.crop_one_face(draw_img, bboxs, landms, scores)
+      for l, r in zip(res, face_info):
+        l.append(r)
+    return res  # vaild_bboxss, face_imgss, face_landmarkss
+
+  def detect_one_face_and_crop(self, draw_img):
+    bboxs, landms, scores = self.detect_one_face(draw_img)
+    return self.crop_one_face(draw_img, bboxs, landms, scores)
 
   @staticmethod
   def face_algin_by_landmark(face_img: np.ndarray, face_landmark: np.ndarray,
@@ -216,7 +271,7 @@ def main(label_path='asset/test_face_data/index.csv',
   valid_labels = []
   for i, img_path in enumerate(img_paths):
     img = cv2.cvtColor(cv2.imread(img_path, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
-    bbox, face_imgs, face_landmarks = retinaface.detect_faces_and_crop(img)
+    bbox, face_imgs, face_landmarks = retinaface.detect_one_face_and_crop(img)
     if len(bbox) != 1:
       print(f'Image {img_path} must only have one face! Please change this photo')
       continue

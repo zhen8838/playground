@@ -40,9 +40,9 @@ def get_face_annotation(xmin: float, ymin: float,
           'flags': {}}
 
 
-def get_point_annotation(x: float, y: float,
-                         label: str,
-                         group_id: int) -> AnnoationSub:
+def get_landmark_annotation(x: float, y: float,
+                            label: str,
+                            group_id: int) -> AnnoationSub:
   return {'label': label,
           'points': [[x, y]],
           'group_id': group_id,
@@ -65,11 +65,11 @@ LANDMARKS = ['left_eye', 'right_eye',
              'right_mouth']
 
 
-def main(output_dir, movie_path: str, movie_id: str):
+def main(model_path: str, output_dir, movie_path: str, movie_id: str):
   # output_dir = '/media/zqh/Documents/jojo-face-landmark'
   # input_dir = '/media/zqh/Documents/JOJO4'
   # predictor = FaceBoxesPredict('FaceBoxes_epoch_90.pth', confidenceTh=0.7)
-  predictor = RetinaFace('asset/retinaface_train.h5', [640, 640])
+  predictor = RetinaFace(model_path, [640, 640])
   stream = cv2.VideoCapture(movie_path)
   n = int(stream.get(cv2.CAP_PROP_FRAME_COUNT))
   output_path = os.path.join(output_dir, movie_id)
@@ -82,7 +82,7 @@ def main(output_dir, movie_path: str, movie_id: str):
     if not ret:
       break
     """ do some thing """
-    bboxs, landms, score = predictor.detect_faces(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    bboxs, landms, score = predictor.detect_one_face(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     if len(bboxs) > 0:
       frame_name = f'{frame_id:d}'
       image_name = frame_name + '.jpg'
@@ -97,7 +97,7 @@ def main(output_dir, movie_path: str, movie_id: str):
         wh = xymax - xymin
         for point, label in zip(np.reshape(landm, (-1, 2)), LANDMARKS):
           x, y = point
-          point_anno = get_point_annotation(x.item(), y.item(), label, group_id)
+          point_anno = get_landmark_annotation(x.item(), y.item(), label, group_id)
           anno['shapes'].append(point_anno)
 
       text = json.dumps(anno, indent=4)
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     tf.config.experimental.set_memory_growth(physical_device, True)
 
   parser = argparse.ArgumentParser(description='')
-
+  parser.add_argument('--model_path', default='asset/retinaface_jojo.h5', type=str)
   parser.add_argument('--output_dir', required=True,
                       default='/media/zqh/Documents/jojo-face-landmark', type=str)
   parser.add_argument('--movie_path', required=True, default='/media/zqh/Documents/JOJO4', type=str)
