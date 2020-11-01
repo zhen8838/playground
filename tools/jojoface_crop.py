@@ -12,7 +12,7 @@ import cv2
 
 
 def main(model_path, movie_path, save_path_root, movie_id, batch_size: int,
-         face_crop_ratio: float, skip_frame: int, ignore_size: int):
+         face_crop_ratio: float, skip_frame: int, ignore_size: int, brightness_thresh: int):
   physical_devices = tf.config.experimental.list_physical_devices('GPU')
   assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
   tf.config.experimental.set_memory_growth(physical_devices[0], True)
@@ -25,10 +25,9 @@ def main(model_path, movie_path, save_path_root, movie_id, batch_size: int,
                           fill_value=255,
                           ignore_size=ignore_size)
 
-  save_path = save_path_root / f'{movie_id:02d}'
-  # for movie_path, save_path in zip(movie_paths, save_paths):
-  if not save_path.exists():
-    save_path.mkdir(parents=True)
+  save_path = movie_path.parent.name + '_' + f'{movie_id}' + '_'
+  if not save_path_root.exists():
+    save_path_root.mkdir(parents=True)
   m = 0
   stream = cv2.VideoCapture(movie_path.as_posix())
   length = int(stream.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -45,16 +44,28 @@ def main(model_path, movie_path, save_path_root, movie_id, batch_size: int,
       break
     frames = [cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) for frame in frames]
     vaild_bboxss, face_imgss, face_landmarkss = retinaface.detect_faces_and_crop(frames)
-    for vaild_bboxs, face_imgs, face_landmarks, frame in zip(vaild_bboxss, face_imgss, face_landmarkss, frames):
+    for vaild_bboxs, face_imgs, face_landmarks in zip(vaild_bboxss, face_imgss, face_landmarkss):
       n = 0
       for vaild_bbox, face_img, face_landmark in zip(vaild_bboxs, face_imgs, face_landmarks):
-        face_landmark /= face_img.shape[1::-1]  # to [0,1]
-        face_img = cv2.resize(face_img, (256, 256))
-        im_path = (save_path / f'{m:d}_{n:d}.jpg').as_posix()
-        js_path = (save_path / f'{m:d}_{n:d}.json').as_posix()
-        anno = get_base_annotation(im_path, 256, 256)
-        if abs(face_landmark[0][0] - face_landmark[1][0]) < 0.1:
+        w, h = face_img.shape[1::-1]  # to [0,1]
+        landmark_scale = face_landmark / [w, h]
+        # face_img = cv2.resize(face_img, (256, 256))
+        im_path = (save_path_root / (save_path + f'{m:d}_{n:d}.jpg')).as_posix()
+        js_path = (save_path_root / (save_path + f'{m:d}_{n:d}.json')).as_posix()
+        anno = get_base_annotation(im_path, h, w)
+        # ensure face always is front
+        if (abs(landmark_scale[0][0] - landmark_scale[1][0]) < 0.14 or
+                abs(landmark_scale[0][1] - landmark_scale[1][1]) > 0.03):
           continue
+        # ensure brightness
+        if face_img.mean() < brightness_thresh:
+          continue
+          # print(im_path, "mean brightness is ", face_img.mean())
+          # brightness = min((255 - face_img.max()) - 20, 150)
+          # if brightness > 0:
+          #   face_img += brightness
+          # else:
+          #   continue
         for idx, label in enumerate(LANDMARKS):
           x, y = face_landmark[idx].tolist()
           anno['shapes'].append(get_landmark_annotation(x, y, label, 0))
@@ -71,14 +82,15 @@ if __name__ == "__main__":
   parser.add_argument('--data_path', type=str, help='movie path',
                       default='/media/zqh/Documents/JOJO4/[AGE-JOJO&UHA-WING&Kamigami][160073][01][BD-720P][CHS-JAP] AVC.mp4')
   parser.add_argument('--save_path', type=str, help='save folder path',
-                      default='/media/zqh/Documents/JOJO4_face_crop')
-  parser.add_argument('--movie_id', type=int, help='save movie id', default=1)
-  parser.add_argument('--batch_size', type=int, help='batch size', default=16)
+                      default='/media/zqh/Documents/JOJO_face_crop')
+  parser.add_argument('--movie_id', type=str, help='save movie id', default='01')
+  parser.add_argument('--batch_size', type=int, help='batch size', default=24)
   parser.add_argument('--face_crop_ratio', type=float, help='face crop ratio', default=1.5)
   parser.add_argument('--skip_frame', type=int, help='skip frame num', default=5)
-  parser.add_argument('--ignore_size', type=int, help='minimum face size', default=180)
+  parser.add_argument('--ignore_size', type=int, help='minimum face size', default=224)
+  parser.add_argument('--brightness_thresh', type=int, help='minimum brightness', default=120)
   args = parser.parse_args()
 
   main(args.model_path, args.data_path, args.save_path, args.movie_id,
        args.batch_size, args.face_crop_ratio, args.skip_frame,
-       args.ignore_size)
+       args.ignore_size, args.brightness_thresh)

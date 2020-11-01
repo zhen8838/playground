@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 from typing import List
 import argparse
+from joblib import Parallel, delayed
 
 
 def letter_box_resize(img, in_hw):
@@ -127,11 +128,19 @@ class RetinaFace():
     landmarkss = []
     scoress = []
     """ parser """
-    for bbox, landm, clses, orig_hw in zip(bboxs, landms, clsess, orig_hws):
-      box, landmark, score = self.parser_one_image(bbox, landm, clses, orig_hw)
+    warp = lambda *args, **kwarg: RetinaFace.parser_one_image(*args, **kwarg)
+    batch_out = Parallel(n_jobs=4, backend='threading')(delayed(warp)(self, bbox, landm, clses, orig_hw)
+                                                        for bbox, landm, clses, orig_hw in zip(bboxs, landms, clsess, orig_hws))
+    for box, landmark, score in batch_out:
       boxss.append(box)
       landmarkss.append(landmark)
       scoress.append(score)
+
+    # for bbox, landm, clses, orig_hw in zip(bboxs, landms, clsess, orig_hws):
+    #   box, landmark, score = self.parser_one_image(bbox, landm, clses, orig_hw)
+    #   boxss.append(box)
+    #   landmarkss.append(landmark)
+    #   scoress.append(score)
     return boxss, landmarkss, scoress
 
   def crop_one_face(self, draw_img: np.ndarray, bboxs: np.ndarray,
@@ -170,8 +179,10 @@ class RetinaFace():
   def detect_faces_and_crop(self, draw_imgs):
     boxss, landmarkss, scoress = self.detect_faces(draw_imgs)
     res = ([], [], [])
-    for draw_img, bboxs, landms, scores in zip(draw_imgs, boxss, landmarkss, scoress):
-      face_info = self.crop_one_face(draw_img, bboxs, landms, scores)
+    warp = lambda *args, **kwargs: RetinaFace.crop_one_face(*args, **kwargs)
+    face_infos = Parallel(n_jobs=4, backend='threading')(delayed(warp)(self, draw_img, bboxs, landms, scores)
+                                                         for draw_img, bboxs, landms, scores in zip(draw_imgs, boxss, landmarkss, scoress))
+    for face_info in face_infos:
       for l, r in zip(res, face_info):
         l.append(r)
     return res  # vaild_bboxss, face_imgss, face_landmarkss
