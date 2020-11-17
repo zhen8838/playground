@@ -12,7 +12,7 @@ from tqdm import trange
 
 
 def main(data_path, save_path, batch_size: int,
-         use_face_crop: bool,
+         use_face_crop: bool, use_face_algin: bool,
          face_crop_ratio: float):
   physical_devices = tf.config.experimental.list_physical_devices('GPU')
   assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
@@ -43,7 +43,10 @@ def main(data_path, save_path, batch_size: int,
         bbox, face_imgs, face_landmarks = retinaface.detect_one_face_and_crop(orig_img)
         if len(bbox) < 1:
           continue
-        warped_img = retinaface.face_algin_by_landmark(face_imgs[0], face_landmarks[0], TEMPLATE)
+        if use_face_algin:
+          warped_img = retinaface.face_algin_by_landmark(face_imgs[0], face_landmarks[0], TEMPLATE)
+        else:
+          warped_img = face_imgs[0]
         mask_imgs.append(warped_img if warped_img.shape[:2] == [
                          512, 512] else cv2.resize(warped_img, (512, 512)))
       else:
@@ -69,8 +72,10 @@ if __name__ == "__main__":
   parser.add_argument('--batch_size', type=int, help='batch size', default=4)
   parser.add_argument('--use_face_crop', type=str, help='weather use face crop',
                       choices=['True', 'False'], default='False')
+  parser.add_argument('--use_face_algin', type=str, help='weather use face algin',
+                      choices=['True', 'False'], default='True')
   parser.add_argument('--face_crop_ratio', type=float, help='face crop ratio', default=2.)
   args = parser.parse_args()
 
   main(args.data_path, args.save_path, args.batch_size,
-       eval(args.use_face_crop), args.face_crop_ratio)
+       eval(args.use_face_crop), eval(args.use_face_algin), args.face_crop_ratio)
